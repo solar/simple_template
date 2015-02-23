@@ -1,25 +1,46 @@
 package main
 
-import "flag"
-import "os"
-import "strings"
-import "text/template"
+import (
+	"flag"
+	"os"
+	"strings"
+	"text/template"
+	"io/ioutil"
+
+	"gopkg.in/yaml.v2"
+)
+
+var values = make(map[string]interface{})
 
 func main() {
+	var conf *string = flag.String("yaml", "", "yaml config file path")
 	flag.Parse()
-	tmpl := template.Must(template.ParseFiles(flag.Args()...))
 
-	err := tmpl.Execute(os.Stdout, envs())
+	addenvs()
+	loadYaml(*conf)
+
+	tmpl := template.Must(template.ParseFiles(flag.Args()...))
+	err := tmpl.Execute(os.Stdout, values)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func envs() map[string]string {
-	var result = make(map[string]string)
+func loadYaml(conf string) {
+	if conf != "" {
+		source, err := ioutil.ReadFile(conf)
+		if err != nil {
+			panic(err)
+		}
+		yaml.Unmarshal(source, &values)
+	}
+}
+
+func addenvs() {
 	for _, e := range os.Environ() {
 		pair := strings.Split(e, "=")
-		result[pair[0]] = pair[1]
+		if values[pair[0]] == nil {
+			values[pair[0]] = pair[1]
+		}
 	}
-	return result
 }
